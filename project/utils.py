@@ -1,6 +1,5 @@
 import cfpq_data
 import networkx as nx
-from typing import Set
 from typing import Tuple
 from pathlib import Path
 
