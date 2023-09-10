@@ -15,11 +15,14 @@ def get_graph_data(graph: nx.MultiDiGraph):
     return graph.number_of_nodes(), graph.number_of_edges(), labels
 
 
-def create_labeled_two_cycle_graph(num_first_cycle: int, num_second_cycle: int, labels: Tuple[str, str]) \
-        -> nx.MultiDiGraph:
-    return cfpq_data.labeled_two_cycles_graph(num_first_cycle, num_second_cycle, labels=labels)
+def create_labeled_two_cycle_graph(
+    num_first_cycle_nodes: int, num_second_cycle_nodes: int, labels: Tuple[str, str]
+) -> nx.MultiDiGraph:
+    return cfpq_data.labeled_two_cycles_graph(
+        num_first_cycle_nodes, num_second_cycle_nodes, labels=labels
+    )
 
 
 def write_to_dot(graph: nx.MultiDiGraph, path: Path):
-    with open(path, 'w') as f:
-        f.write(nx.drawing.nx_pydot.to_pydot(graph).replace)
+    with open(path, "w") as f:
+        f.write(nx.drawing.nx_pydot.to_pydot(graph).to_string())
