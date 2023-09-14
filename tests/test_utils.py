@@ -1,9 +1,8 @@
+import filecmp
 import pytest
 from project.utils import *
 import os
 import cfpq_data
-import networkx as nx
-import pydot
 from pathlib import Path
 
 
@@ -64,24 +63,7 @@ class TestsUtils:
         )
         write_to_dot(graph_compare, path_compare)
 
-        def read(input_path: Path):
-            return open(input_path, "r").read()
-
-        assert read(path) == read(path_compare)
-
-        graph_from_pydot = nx.nx_pydot.from_pydot(pydot.graph_from_dot_file(path)[0])
-        graph_compare_from_pydot = nx.nx_pydot.from_pydot(
-            pydot.graph_from_dot_file(path_compare)[0]
-        )
-
-        assert (
-            graph_from_pydot.number_of_nodes()
-            == graph_compare_from_pydot.number_of_nodes()
-        )
-        assert (
-            graph_from_pydot.number_of_edges()
-            == graph_compare_from_pydot.number_of_edges()
-        )
+        assert filecmp.cmp(path, path_compare)
 
         os.remove(path)
         os.remove(path_compare)

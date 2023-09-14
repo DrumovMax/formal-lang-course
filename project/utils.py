@@ -23,5 +23,5 @@ def create_labeled_two_cycle_graph(
 
 
 def write_to_dot(graph: nx.MultiDiGraph, path: Path):
-    with open(path, "w") as f:
-        f.write(nx.drawing.nx_pydot.to_pydot(graph).to_string().replace("\n", ""))
+    agraph = nx.nx_agraph.to_agraph(graph)
+    agraph.write(str(path))
