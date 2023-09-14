@@ -23,5 +23,5 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run tests
       run: |
-        sudo apt-get install -y graphviz
+        sudo apt-get install -y graphviz graphviz-dev
         python ./scripts/run_tests.py
