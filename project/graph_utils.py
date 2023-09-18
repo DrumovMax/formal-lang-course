@@ -5,12 +5,12 @@ from pathlib import Path
 
 
 def load_graph(name: str) -> nx.MultiDiGraph:
-    """Loads a graph from dataset by name
+    """Loads a graph from dataset by name.
 
     Parameters:
     ----------
     name: str
-        name of graph from cfpq dataset
+        Name of graph from cfpq dataset.
 
     Returns:
     ---------
@@ -22,12 +22,12 @@ def load_graph(name: str) -> nx.MultiDiGraph:
 
 
 def get_graph_data(graph: nx.MultiDiGraph):
-    """Get information about the graph: number of nodes, number of edges and set of labels
+    """Get information about the graph: number of nodes, number of edges and set of labels.
 
     Parameters:
     ----------
     graph: nx.MultiDiGraph
-        graph, information on which we will get
+        Graph, information on which we will get.
 
     Returns:
     ---------
@@ -41,7 +41,7 @@ def get_graph_data(graph: nx.MultiDiGraph):
 def create_labeled_two_cycle_graph(
     num_first_cycle_nodes: int, num_second_cycle_nodes: int, labels: Tuple[str, str]
 ) -> nx.MultiDiGraph:
-    """Create labeled two cycles graph
+    """Create labeled two cycles graph.
 
     Parameters:
     ----------

@@ -1,12 +1,12 @@
 import filecmp
 import pytest
-from project.utils import *
+from project.graph_utils import *
 import os
 import cfpq_data
 from pathlib import Path
 
 
-class TestsUtils:
+class TestsGraphUtils:
     def test_download_graph(self):
         graph = load_graph("skos")
         assert graph.number_of_nodes() == 144
