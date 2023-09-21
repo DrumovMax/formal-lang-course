@@ -17,7 +17,7 @@ def create_minimal_dfa(regex: Regex) -> DeterministicFiniteAutomaton:
     DeterministicFiniteAutomaton
         Created minimized DFA.
     """
-    return regex.to_epsilon_nfa().to_deterministic().minimize()
+    return regex.to_epsilon_nfa().minimize()
 
 
 def create_nfa(
