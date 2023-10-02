@@ -1,5 +1,6 @@
 from pyformlang.finite_automaton import *
 from scipy import sparse
+from scipy.sparse import block_diag, csr_matrix, vstack, csr_array, lil_array
 
 
 class BoolMatrix:
@@ -153,3 +154,106 @@ class BoolMatrix:
             curr = adjacency_matrix.nnz
 
         return adjacency_matrix
+
+    def direct_sum(self, other):
+        matrix = {}
+        symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
+
+        for symbol in symbols:
+            matrix[symbol] = block_diag(
+                (other.bool_matrix[symbol], self.bool_matrix[symbol]),
+                format="csr",
+            )
+
+        return matrix
+
+    def make_front(self, other):
+        front = sparse.lil_matrix(
+            (other.states_amount, self.states_amount + other.states_amount)
+        )
+
+        self_start_row = sparse.lil_array(
+            [[state in self.start_states for state in self.states]]
+        )
+
+        for _, i in other.states_dict.items():
+            front[i, i] = True
+            front[i, other.states_amount :] = self_start_row
+
+        return front.tocsr()
+
+    def make_separate_front(self, other):
+        start_indexes = {
+            index
+            for index, state in enumerate(self.states)
+            if state in self.start_states
+        }
+
+        fronts = [self.make_front(other) for _ in start_indexes]
+
+        return (
+            csr_matrix(vstack(fronts))
+            if len(fronts) > 0
+            else csr_matrix(
+                other.states_amount, other.states_amount + self.states_amount
+            )
+        )
+
+    def constraint_bfs(self, other, is_separate: bool = False):
+        direct_sum = self.direct_sum(other)
+        n = self.states_amount
+        k = other.states_amount
+        symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
+
+        start_states_indices, final_states_indices, other_final_states_indices = [
+            [i for i, st in enumerate(states) if st in target_states]
+            for states, target_states in [
+                (self.states, self.start_states),
+                (self.states, self.final_states),
+                (other.states, other.final_states),
+            ]
+        ]
+
+        front = (
+            self.make_front(other)
+            if not is_separate
+            else self.make_separate_front(other)
+        )
+
+        is_visited = csr_array(front.shape)
+
+        while True:
+            old_is_visited = is_visited.copy()
+
+            for symbol in symbols:
+                result = is_visited @ direct_sum[symbol]
+                transform = transform_front(result, other.states_amount)
+                is_visited += transform
+
+            if old_is_visited == is_visited.nnz:
+                break
+
+        result = set()
+        rows, cols = is_visited.nonzero()
+        for i, j in zip(rows, cols):
+            if j >= k and i % k in other_final_states_indices:
+                if j - k in final_states_indices:
+                    result.add(j - k) if not is_separate else result.add(
+                        (start_states_indices[i // n], j - k)
+                    )
+
+        return result
+
+
+def transform_front(front, amount):
+    new_front = lil_array(front.shape)
+
+    rows, cols = front.nonzero()
+    for i, j in zip(rows, cols):
+        if j < amount:
+            row = front.getrow(i)
+
+            if row.nnz > 1:
+                new_front[[i // amount * amount + j], :] += row.tolil()
+
+    return new_front.tocsr()
