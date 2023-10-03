@@ -155,7 +155,7 @@ class BoolMatrix:
 
         return adjacency_matrix
 
-    def direct_sum(self, other):
+    def _direct_sum(self, other):
         matrix = {}
         symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
 
@@ -167,7 +167,7 @@ class BoolMatrix:
 
         return matrix
 
-    def make_front(self, other):
+    def _make_front(self, other):
         front = sparse.lil_matrix(
             (other.states_amount, self.states_amount + other.states_amount)
         )
@@ -182,25 +182,25 @@ class BoolMatrix:
 
         return front.tocsr()
 
-    def make_separate_front(self, other):
+    def _make_separate_front(self, other):
         start_indexes = {
             index
             for index, state in enumerate(self.states)
             if state in self.start_states
         }
 
-        fronts = [self.make_front(other) for _ in start_indexes]
+        fronts = [self._make_front(other) for _ in start_indexes]
 
         return (
             csr_matrix(vstack(fronts))
             if len(fronts) > 0
             else csr_matrix(
-                other.states_amount, other.states_amount + self.states_amount
+                (other.states_amount, other.states_amount + self.states_amount)
             )
         )
 
     def constraint_bfs(self, other, is_separate: bool = False):
-        direct_sum = self.direct_sum(other)
+        direct_sum = self._direct_sum(other)
         n = self.states_amount
         k = other.states_amount
         symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
@@ -214,23 +214,23 @@ class BoolMatrix:
             ]
         ]
 
-        front = (
-            self.make_front(other)
+        is_visited = (
+            self._make_front(other)
             if not is_separate
-            else self.make_separate_front(other)
+            else self._make_separate_front(other)
         )
 
-        is_visited = csr_array(front.shape)
+        # is_visited = csr_array(front.shape)
 
         while True:
             old_is_visited = is_visited.copy()
 
             for symbol in symbols:
                 result = is_visited @ direct_sum[symbol]
-                transform = transform_front(result, other.states_amount)
+                transform = _transform_front(result, other.states_amount)
                 is_visited += transform
 
-            if old_is_visited == is_visited.nnz:
+            if old_is_visited.nnz == is_visited.nnz:
                 break
 
         result = set()
@@ -238,22 +238,25 @@ class BoolMatrix:
         for i, j in zip(rows, cols):
             if j >= k and i % k in other_final_states_indices:
                 if j - k in final_states_indices:
-                    result.add(j - k) if not is_separate else result.add(
-                        (start_states_indices[i // n], j - k)
-                    )
+                    if not is_separate:
+                        result.add(j - k)
+                    else:
+                        result.add((start_states_indices[i // n], j - k))
 
         return result
 
 
-def transform_front(front, amount):
+def _transform_front(front, amount):
     new_front = lil_array(front.shape)
 
     rows, cols = front.nonzero()
     for i, j in zip(rows, cols):
         if j < amount:
-            row = front.getrow(i)
+            row = front.getrow(i).tolil()[[0], amount:]
 
-            if row.nnz > 1:
-                new_front[[i // amount * amount + j], :] += row.tolil()
+            if row.nnz > 0:
+                shift_row = i // amount * amount
+                new_front[shift_row + j, j] = 1
+                new_front[[shift_row + j], amount:] += row
 
     return new_front.tocsr()

@@ -47,3 +47,21 @@ def rpq(
     }
 
     return result
+
+
+def bfs_rpq(
+    regex: Regex,
+    graph: MultiDiGraph,
+    start_nodes: set = None,
+    final_nodes: set = None,
+    is_separate: bool = False,
+):
+    graph_fa = create_nfa(graph, start_nodes, final_nodes)
+    regex_fa = create_minimal_dfa(regex)
+
+    graph_bm = BoolMatrix(graph_fa)
+    regex_bm = BoolMatrix(regex_fa)
+
+    result = graph_bm.constraint_bfs(regex_bm, is_separate)
+
+    return result
