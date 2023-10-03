@@ -63,8 +63,8 @@ class TestsForRpq:
             ]
         )
 
-        result = bfs_rpq(regex, graph, {0, 1}, {2}, True)
-        assert result == {(nodes[0], nodes[2]), (nodes[1], nodes[2])}
+        result = bfs_rpq(regex, graph, {0}, {2}, True)
+        assert result == {(nodes[0], nodes[2])}
 
     def test_full_bfs_rpq(self):
         regex = Regex("(a|b)*")

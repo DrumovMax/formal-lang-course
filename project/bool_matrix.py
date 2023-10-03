@@ -156,6 +156,18 @@ class BoolMatrix:
         return adjacency_matrix
 
     def _direct_sum(self, other):
+        """
+        Build a block-diagonal matrix from the provided matrices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+
+        Returns
+        -------
+        matrix : Dict[any, csr_matrix]
+            Returns result of the operation
+        """
         matrix = {}
         symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
 
@@ -168,6 +180,18 @@ class BoolMatrix:
         return matrix
 
     def _make_front(self, other):
+        """Create front matrix for bfs.
+        For the specified set of starting vertices, find the set of reachable vertices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        Returns
+        -------
+        front : Tuple[csr_matrix, List[any]]
+            Returns front.
+        """
         front = sparse.lil_matrix(
             (other.states_amount, self.states_amount + other.states_amount)
         )
@@ -183,6 +207,18 @@ class BoolMatrix:
         return front.tocsr()
 
     def _make_separate_front(self, other):
+        """Create front matrix for bfs.
+        For each vertex from the specified set find the set of reachable vertices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        Returns
+        -------
+        front : Tuple[csr_matrix, List[any]]
+            Returns front.
+        """
         start_indexes = {
             index
             for index, state in enumerate(self.states)
@@ -200,6 +236,18 @@ class BoolMatrix:
         )
 
     def constraint_bfs(self, other, is_separate: bool = False):
+        """Traverse presented graph via BFS with matrix operations and with constraint.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        is_separate : bool
+            Flag represented type of solving problem
+        Returns
+        -------
+        Reachable vertices.
+        """
         direct_sum = self._direct_sum(other)
         n = self.states_amount
         k = other.states_amount
@@ -219,8 +267,6 @@ class BoolMatrix:
             if not is_separate
             else self._make_separate_front(other)
         )
-
-        # is_visited = csr_array(front.shape)
 
         while True:
             old_is_visited = is_visited.copy()
@@ -247,6 +293,19 @@ class BoolMatrix:
 
 
 def _transform_front(front, amount):
+    """Transforms the front into valid.
+
+    Parameters
+    ----------
+    front : csr_matrix
+        Invalid front
+    amount : int
+        Number of state at the regex fa.
+    Returns
+    -------
+    Front : csr_matrix
+        Valid new front.
+    """
     new_front = lil_array(front.shape)
 
     rows, cols = front.nonzero()

@@ -17,11 +17,11 @@ def rpq(
     ----------
     regex : Regex
         Regular expression from pyformlang.
-    graph: MultiDiGraph
+    graph : MultiDiGraph
         Graph from networkx.
     start_nodes : set
         Start states of finite automaton.
-    final_nodes: set
+    final_nodes : set
         Final states of finite automaton.
     Returns
     -------
@@ -56,6 +56,28 @@ def bfs_rpq(
     final_nodes: set = None,
     is_separate: bool = False,
 ):
+    """
+    Perform regular queries on graphs.
+
+    Parameters
+    ----------
+    regex : Regex
+        Regular expression from pyformlang.
+    graph : MultiDiGraph
+        Graph from networkx.
+    start_nodes : set
+        Start states of finite automaton.
+    final_nodes : set
+        Final states of finite automaton.
+    is_separate : bool
+        Flag represented type of solving problem
+    Returns
+    -------
+    result : any
+        Returns either a set of reachable states, or a set of state pairs where the first element is responsible
+        for the initial state and the second element is responsible for the final state. pairs of states,
+        where the first element is responsible for the initial state and the second for the final state.
+    """
     graph_fa = create_nfa(graph, start_nodes, final_nodes)
     regex_fa = create_minimal_dfa(regex)
 
