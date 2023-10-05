@@ -1,5 +1,6 @@
 from pyformlang.finite_automaton import *
 from scipy import sparse
+from scipy.sparse import block_diag, csr_matrix, vstack, csr_array, lil_array
 
 
 class BoolMatrix:
@@ -153,3 +154,168 @@ class BoolMatrix:
             curr = adjacency_matrix.nnz
 
         return adjacency_matrix
+
+    def _direct_sum(self, other):
+        """
+        Build a block-diagonal matrix from the provided matrices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+
+        Returns
+        -------
+        matrix : Dict[any, csr_matrix]
+            Returns result of the operation
+        """
+        matrix = {}
+        symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
+
+        for symbol in symbols:
+            matrix[symbol] = block_diag(
+                (other.bool_matrix[symbol], self.bool_matrix[symbol]),
+                format="csr",
+            )
+
+        return matrix
+
+    def _make_front(self, other):
+        """Create front matrix for bfs.
+        For the specified set of starting vertices, find the set of reachable vertices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        Returns
+        -------
+        front : Tuple[csr_matrix, List[any]]
+            Returns front.
+        """
+        front = sparse.lil_matrix(
+            (other.states_amount, self.states_amount + other.states_amount)
+        )
+
+        self_start_row = sparse.lil_array(
+            [[state in self.start_states for state in self.states]]
+        )
+
+        for _, i in other.states_dict.items():
+            front[i, i] = True
+            front[i, other.states_amount :] = self_start_row
+
+        return front.tocsr()
+
+    def _make_separate_front(self, other):
+        """Create front matrix for bfs.
+        For each vertex from the specified set find the set of reachable vertices.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        Returns
+        -------
+        front : Tuple[csr_matrix, List[any]]
+            Returns front.
+        """
+        start_indexes = {
+            index
+            for index, state in enumerate(self.states)
+            if state in self.start_states
+        }
+
+        fronts = [self._make_front(other) for _ in start_indexes]
+
+        return (
+            csr_matrix(vstack(fronts))
+            if len(fronts) > 0
+            else csr_matrix(
+                (other.states_amount, other.states_amount + self.states_amount)
+            )
+        )
+
+    def constraint_bfs(self, other, is_separate: bool = False):
+        """Traverse presented graph via BFS with matrix operations and with constraint.
+
+        Parameters
+        ----------
+        other : BoolMatrix
+            Regular expression represented as an adjacency matrix.
+        is_separate : bool
+            Flag represented type of solving problem
+        Returns
+        -------
+        Reachable vertices.
+        """
+        direct_sum = self._direct_sum(other)
+        n = self.states_amount
+        k = other.states_amount
+        symbols = set(self.bool_matrix.keys()) & set(other.bool_matrix.keys())
+
+        start_states_indices, final_states_indices, other_final_states_indices = [
+            [i for i, st in enumerate(states) if st in target_states]
+            for states, target_states in [
+                (self.states, self.start_states),
+                (self.states, self.final_states),
+                (other.states, other.final_states),
+            ]
+        ]
+
+        is_visited = (
+            self._make_front(other)
+            if not is_separate
+            else self._make_separate_front(other)
+        )
+
+        while True:
+            old_is_visited = is_visited.copy()
+
+            for symbol in symbols:
+                result = is_visited @ direct_sum[symbol]
+                transform = _transform_front(result, other.states_amount)
+                is_visited += transform
+
+            if old_is_visited.nnz == is_visited.nnz:
+                break
+
+        result = set()
+        rows, cols = is_visited.nonzero()
+        for i, j in zip(rows, cols):
+            if j >= k and i % k in other_final_states_indices:
+                if j - k in final_states_indices:
+                    if not is_separate:
+                        result.add(j - k)
+                    else:
+                        result.add((start_states_indices[i // n], j - k))
+
+        return result
+
+
+def _transform_front(front, amount):
+    """Transforms the front into valid.
+
+    Parameters
+    ----------
+    front : csr_matrix
+        Invalid front
+    amount : int
+        Number of state at the regex fa.
+    Returns
+    -------
+    Front : csr_matrix
+        Valid new front.
+    """
+    new_front = lil_array(front.shape)
+
+    rows, cols = front.nonzero()
+    for i, j in zip(rows, cols):
+        if j < amount:
+            row = front.getrow(i).tolil()[[0], amount:]
+
+            if row.nnz > 0:
+                shift_row = i // amount * amount
+                new_front[shift_row + j, j] = 1
+                new_front[[shift_row + j], amount:] += row
+
+    return new_front.tocsr()
