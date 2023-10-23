@@ -1,0 +1,9 @@
+S -> "VAR:a#CNF#" C#CNF#1
+C#CNF#1 -> "VAR:b#CNF#" C#CNF#2
+C#CNF#2 -> "VAR:c#CNF#" C#CNF#3
+C#CNF#3 -> "VAR:d#CNF#" "VAR:e#CNF#"
+a#CNF# -> a
+b#CNF# -> b
+c#CNF# -> c
+d#CNF# -> d
+e#CNF# -> e

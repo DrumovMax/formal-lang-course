@@ -1,0 +1,5 @@
+Z -> z
+Y -> y
+C#CNF#1 -> Y Z
+S -> X "VAR:C#CNF#1"
+X -> x
