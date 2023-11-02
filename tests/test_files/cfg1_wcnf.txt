@@ -1,7 +1,7 @@
 S -> NP "VAR:C#CNF#1"
 Det -> an
 V -> sees
-PUNC -> .
+PUNC -> \.
 N -> carrots
 N -> gorilla
 VP -> V NP
