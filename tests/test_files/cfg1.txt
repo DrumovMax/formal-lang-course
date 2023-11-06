@@ -1,5 +1,5 @@
 S -> NP VP PUNC
-PUNC -> . | !
+PUNC -> \. | !
 VP -> V NP
 V -> buys | touches | sees
 NP -> georges | jacques | leo | Det N
