@@ -1,9 +1,6 @@
-from typing import List, Tuple, Any
-
 from networkx import MultiDiGraph
-from pyformlang.cfg import CFG, Variable, Terminal
-from project.cfg import cfg_to_wcnf, get_cfg_from_file
-from project.graph_utils import load_graph
+from pyformlang.cfg import CFG, Variable
+from project.cfg import cfg_to_wcnf
 
 
 def hellings_closure(cfg: CFG, graph: MultiDiGraph):
