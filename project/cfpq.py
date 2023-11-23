@@ -1,5 +1,6 @@
 from networkx import MultiDiGraph
 from pyformlang.cfg import CFG, Variable
+from scipy.sparse import dok_array, eye
 from project.cfg import cfg_to_wcnf
 
 
@@ -63,10 +64,11 @@ def cfpq(
     start_nodes: set = None,
     final_nodes: set = None,
     start_symbol: Variable = Variable("S"),
+    alg_type: str = "hellings",
 ):
     """
     It allows you to solve a reachability problem
-    for start and final nodes of your graph using the Helling`s algorithm.
+    for start and final nodes of your graph using the Helling`s or Matrix algorithms.
 
     Parameters:
     ----------
@@ -92,6 +94,62 @@ def cfpq(
 
     return {
         (v, j)
-        for i, v, j in hellings_closure(cfg, graph)
+        for i, v, j in (
+            hellings_closure(cfg, graph)
+            if alg_type == "hellings"
+            else matrix(cfg, graph)
+        )
         if i == start_symbol and v in start_nodes and j in final_nodes
     }
+
+
+def matrix(cfg: CFG, graph: MultiDiGraph):
+    """Find transitive closure of the graph with constraints of cfg grammar.
+
+    Parameters:
+    ----------
+    graph : MultiDiGraph
+        Input graph from networkx.
+    cfg : CFG
+        Context-Free Grammar.
+    Returns:
+    -------
+    res : Set
+        Constrained transitive closure of graph.
+    """
+    cfg = cfg_to_wcnf(cfg)
+    term_prod = {prod for prod in cfg.productions if len(prod.body) == 1}
+    var_prod = {prod for prod in cfg.productions if len(prod.body) == 2}
+    eps_prod = {prod for prod in cfg.productions if len(prod.body) > 2}
+
+    size = len(graph.nodes)
+    adjs = {v: dok_array((size, size), dtype=bool) for v in cfg.variables}
+    nodes = {n: i for i, n in enumerate(graph.nodes)}
+
+    for (v, u, label) in graph.edges(data="label"):
+        for prod in term_prod:
+            if label == prod.body[0].value:
+                adjs[prod.head][nodes[v], nodes[u]] = True
+
+    for adj in adjs.values():
+        adj.tocsr()
+
+    diag = eye(len(nodes), dtype=bool, format="csr")
+    for v in eps_prod:
+        adjs[v.head] += diag
+
+    changing = True
+    while changing:
+        changing = False
+        for prod in var_prod:
+            nnz_old = adjs[prod.head].nnz
+            adjs[prod.head] += adjs[prod.body[0]] @ adjs[prod.body[1]]
+            changing |= adjs[prod.head].nnz != nnz_old
+
+    nodes = {i: n for n, i in nodes.items()}
+    r = []
+    for N, adj in adjs.items():
+        nz = adj.nonzero()
+        for i, j in list(zip(nz[0], nz[1])):
+            r.append((N, nodes[i], nodes[j]))
+    return r

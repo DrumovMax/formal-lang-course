@@ -2,10 +2,10 @@ import pytest
 from networkx import MultiDiGraph
 from pyformlang.cfg import Variable
 from project.cfg import CFG
-from project.hellings import cfpq, hellings_closure
+from project.cfpq import cfpq, hellings_closure, matrix
 
 
-class TestsHellings:
+class TestsCFPQ:
     cfg = """
                 S -> A B
                 S -> A C
@@ -54,7 +54,7 @@ class TestsHellings:
     ]
 
     @pytest.mark.parametrize(
-        "cfg, graph_edges, start_nodes, final_nodes, expected_hellings, expected_cfpq",
+        "cfg, graph_edges, start_nodes, final_nodes, expected_result, expected_cfpq",
         testdata,
     )
     def test_cfpq(
@@ -63,13 +63,18 @@ class TestsHellings:
         graph_edges,
         start_nodes,
         final_nodes,
-        expected_hellings,
+        expected_result,
         expected_cfpq,
     ):
         cfg = CFG.from_text(cfg)
         graph = MultiDiGraph()
         graph.add_edges_from(graph_edges)
-        res_cfpq = cfpq(cfg, graph, start_nodes, final_nodes)
-        res_helligns = hellings_closure(cfg, graph)
-        assert res_cfpq == expected_cfpq
-        assert res_helligns == expected_hellings
+        for alg in {"hellings", "matrix"}:
+            res_cfpq = cfpq(cfg, graph, start_nodes, final_nodes, alg_type=alg)
+            res_alg = (
+                hellings_closure(cfg, graph)
+                if alg == "hellings"
+                else matrix(cfg, graph)
+            )
+            assert res_cfpq == expected_cfpq
+            assert set(res_alg) == set(expected_result)
