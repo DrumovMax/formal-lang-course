@@ -7,7 +7,7 @@ from project.fa_utils import create_minimal_dfa
 from project.ecfg import ECFG
 
 
-class TestsCFG:
+class TestsECFG:
     ecfg_prods = [
         {
             Variable("S"): Regex("NP VP PUNC"),
