@@ -1,4 +1,6 @@
 from pyformlang.cfg import Variable
+from pyformlang.finite_automaton import EpsilonNFA, State
+
 from project.ecfg import ECFG
 
 
@@ -38,3 +40,16 @@ class RSM:
         for key, value in self.boxes.items():
             self.boxes[key] = value.minimize()
         return self
+
+    def merge_boxes_to_nfa(self):
+        res = EpsilonNFA()
+        for var, fa in self.boxes.items():
+            for st in fa.start_states:
+                res.add_start_state(State((var, st)))
+            for st in fa.final_states:
+                res.add_final_state(State((var, st)))
+            res.add_transitions(
+                (State((var, start)), sym, State((var, finish)))
+                for (start, sym, finish) in fa
+            )
+        return res

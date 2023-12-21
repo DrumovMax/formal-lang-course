@@ -1,7 +1,12 @@
 from networkx import MultiDiGraph
 from pyformlang.cfg import CFG, Variable
-from scipy.sparse import dok_array, eye
+from scipy.sparse import dok_array, eye, lil_matrix
+
+from project.bool_matrix import BoolMatrix
 from project.cfg import cfg_to_wcnf
+from project.ecfg import ECFG
+from project.fa_utils import create_nfa
+from project.rsm import RSM
 
 
 def hellings_closure(cfg: CFG, graph: MultiDiGraph):
@@ -68,7 +73,8 @@ def cfpq(
 ):
     """
     It allows you to solve a reachability problem
-    for start and final nodes of your graph using the Helling`s or Matrix algorithms.
+    for start and final nodes of your graph
+    using the Helling`s, Tensor or Matrix algorithms.
 
     Parameters:
     ----------
@@ -98,6 +104,8 @@ def cfpq(
             hellings_closure(cfg, graph)
             if alg_type == "hellings"
             else matrix(cfg, graph)
+            if alg_type == "matrix"
+            else tensor(cfg, graph)
         )
         if i == start_symbol and v in start_nodes and j in final_nodes
     }
@@ -153,3 +161,75 @@ def matrix(cfg: CFG, graph: MultiDiGraph):
         for i, j in list(zip(nz[0], nz[1])):
             r.append((N, nodes[i], nodes[j]))
     return r
+
+
+def tensor(cfg: CFG, graph: MultiDiGraph):
+    """
+    Solves the reachability problem via the tensor algorithm
+
+    Parameters:
+    ----------
+    cfg : CFG
+        Context-Free Grammar.
+    graph : MultiDiGraph
+        Input graph from networkx.
+    Returns:
+    -------
+    res : Set
+        Constrained transitive closure of graph.
+    """
+    bmatrix_rsm = BoolMatrix(
+        RSM.ecfg_to_rsm(ECFG.ecfg_from_cfg(cfg)).minimize().merge_boxes_to_nfa()
+    )
+    bm_rsm_i_st = {i: st for st, i in bmatrix_rsm.states_dict.items()}
+
+    bmatrix_graph = BoolMatrix(create_nfa(graph))
+    bm_g_i_st = {i: st for st, i in bmatrix_graph.states_dict.items()}
+
+    identity_matrix = eye(bmatrix_graph.states_amount, format="dok", dtype=bool)
+    for nonterm in cfg.get_nullable_symbols():
+        if nonterm.value in bmatrix_graph.bool_matrix.keys():
+            bmatrix_graph.bool_matrix[nonterm.value] += identity_matrix
+        else:
+            bmatrix_graph.bool_matrix[nonterm.value] = identity_matrix
+
+    index_len = 0
+    while True:
+        tc_indexes = list(
+            zip(*bmatrix_rsm.intersect(bmatrix_graph).transitive_closure().nonzero())
+        )
+        if len(tc_indexes) == index_len:
+            break
+        index_len = len(tc_indexes)
+
+        for (i, j) in tc_indexes:
+            r_i, g_i = divmod(i, bmatrix_graph.states_amount)
+            r_j, g_j = divmod(j, bmatrix_graph.states_amount)
+
+            state_from = bm_rsm_i_st[r_i]
+            state_to = bm_rsm_i_st[r_j]
+            nonterm, _ = state_from.value
+            if (
+                state_from in bmatrix_rsm.start_states
+                and state_to in bmatrix_rsm.final_states
+            ):
+                if nonterm.value in bmatrix_graph.bool_matrix.keys():
+                    bmatrix_graph.bool_matrix[nonterm][g_i, g_j] = True
+                else:
+                    bmatrix_graph.bool_matrix[nonterm] = lil_matrix(
+                        (
+                            bmatrix_graph.states_amount,
+                            bmatrix_graph.states_amount,
+                        ),
+                        dtype=bool,
+                    )
+                    bmatrix_graph.bool_matrix[nonterm][g_i, g_j] = True
+    return {
+        (
+            nonterm,
+            bm_g_i_st[graph_i],
+            bm_g_i_st[graph_j],
+        )
+        for nonterm, mtx in bmatrix_graph.bool_matrix.items()
+        for graph_i, graph_j in zip(*mtx.nonzero())
+    }
